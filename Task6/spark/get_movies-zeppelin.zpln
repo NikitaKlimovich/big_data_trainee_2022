@@ -1,0 +1,358 @@
+﻿{
+  "paragraphs": [
+    {
+      "text": "%sh\n#create neccesary folders and put files to them\nhdfs dfs -rm -r input 2>/dev/null\nhdfs dfs -rm -r output 2>/dev/null\nhdfs dfs -mkdir input \nhdfs dfs -mkdir output\nhdfs dfs -copyFromLocal ./csv/movies.csv input\nhdfs dfs -copyFromLocal ./csv/ratings.csv input",
+      "user": "anonymous",
+      "dateUpdated": "2022-04-22T14:05:08+0000",
+      "progress": 0,
+      "config": {
+        "editorSetting": {
+          "language": "sh",
+          "editOnDblClick": false,
+          "completionKey": "TAB",
+          "completionSupport": false
+        },
+        "colWidth": 12,
+        "editorMode": "ace/mode/sh",
+        "fontSize": 9,
+        "results": {},
+        "enabled": true
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "runtimeInfos": {},
+      "progressUpdateIntervalMs": 500,
+      "jobName": "paragraph_1650635455202_196055472",
+      "id": "paragraph_1650635455202_196055472",
+      "dateCreated": "2022-04-22T13:50:55+0000",
+      "status": "READY",
+      "focus": true,
+      "$$hashKey": "object:2424"
+    },
+    {
+      "text": "%pyspark\n#define functions\ndef get_movies_line_split(line):\n       \"\"\"\n       split lines in file with movies into items\n       \"\"\"\n       try:\n              if '\\\"' in line:\n                     movie_id,title_year, genres = line.replace(',', '').split('\\\"')\n              else:\n                     movie_id,title_year, genres = line.split(',')\n       except ValueError:\n              return []\n       try:\n              title = re.sub(r'\\s\\(\\d{4}\\)', '', title_year)\n              year =  re.findall(r'\\((\\d{4})\\)', title_year)[0]\n       except IndexError:\n              return []\n       return movie_id, (title, year, genres)\n\n\ndef get_ratings_line_split(line):\n       \"\"\"\n       split lines in file with ratings into items\n       \"\"\"\n       try:\n              if '\\\"' in line:\n                     _,movie_id, rating, _ = line.replace(',', '').split('\\\"')\n              else:\n                     _,movie_id, rating, _ = line.split(',')\n              rating_float = float(rating)\n       except ValueError:\n              return (0,0)\n       return (movie_id, rating_float)\n\n\ndef is_correct(line_split,args):\n       \"\"\"\n       check if line satisfies a conditions\n       \"\"\"\n       try:\n              _, (title,year, genres) = line_split\n       except ValueError:\n              return False\n       title = check_title(title, args.regexp)\n       year = check_year(int(year), args.year_from, args.year_to)\n       genres = check_genre(genres, args.genres)\n       return title and year and genres\n\n\ndef check_title(title, regexp):\n    if regexp:\n        if re.findall(regexp.lower(), title.lower()) != []:\n            return title\n        else:\n            return False\n    else:\n        return title\n\n\ndef check_year(year, year_from, year_to):\n    return check_year_from(year, year_from) and check_year_to(year, year_to)\n\n\ndef check_year_from(year, year_from):\n    if year_from:\n        return year >= year_from\n    else:\n        return True\n\n\ndef check_year_to(year, year_to):\n    if year_to:\n        return year <= year_to\n    else:\n        return True\n\n\ndef check_genre(genres_all, genres_need):\n    if 'no_genres_listed' not in genres_all:\n        genres_all=genres_all.replace('\\n', '').split('|')\n        if genres_need:\n            genres_need = genres_need.split('|')\n            res = [genre for genre in genres_need if genre in genres_all]\n            if res !=[] :\n                return True\n            else:\n                return False\n        else:    \n            return True\n    else:\n        return False\n\n\ndef get_avg_rating(res_tuple):\n       _, ((title,year,genres),ratings) = res_tuple\n       for genre in genres.split('|'):\n              yield genre,(title,year,round(sum(ratings)/len(ratings),3))\n\n\ndef get_item(tuple):\n       \"\"\"\n       get sorting order\n       \"\"\"\n       genre, (_, year, avg_rating) = tuple\n       return (genre,avg_rating * -1, year * -1)\n\n\ndef get_group_key(tuple):\n       \"\"\"\n       get a key to group by\n       \"\"\"\n       genre, (_, year, avg_rating) = tuple\n       return genre\n\n\ndef get_first_n(tuple,args):\n       \"\"\"\n       get first n values for each group\n       \"\"\"\n       count=args.N\n       _, item = tuple\n       if count:\n              return list(item)[:count]\n       else:\n              return list(item)\n\ndef get_format(tuple):\n       \"\"\"\n       change to required format\n       \"\"\"\n       genre, (title, year, avg_rating) = tuple\n       return \";\".join([genre,title,year,str(avg_rating)])\n\ndef read_file(path):\n       \"\"\"\n       read file in hdfs and return it\n       \"\"\"\n       sc = SparkContext(master='local[*]')\n       return sc.textFile(path)",
+      "user": "anonymous",
+      "dateUpdated": "2022-04-22T14:07:39+0000",
+      "progress": 0,
+      "config": {
+        "editorSetting": {
+          "language": "python",
+          "editOnDblClick": false,
+          "completionKey": "TAB",
+          "completionSupport": true
+        },
+        "colWidth": 12,
+        "editorMode": "ace/mode/python",
+        "fontSize": 9,
+        "editorHide": false,
+        "results": {},
+        "enabled": true
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "results": {
+        "code": "ERROR",
+        "msg": [
+          {
+            "type": "TEXT",
+            "data": "org.apache.zeppelin.interpreter.InterpreterException: org.apache.zeppelin.interpreter.InterpreterException: Fail to open PythonInterpreter\n\tat org.apache.zeppelin.interpreter.LazyOpenInterpreter.open(LazyOpenInterpreter.java:76)\n\tat org.apache.zeppelin.interpreter.remote.RemoteInterpreterServer$InterpretJob.jobRun(RemoteInterpreterServer.java:836)\n\tat org.apache.zeppelin.interpreter.remote.RemoteInterpreterServer$InterpretJob.jobRun(RemoteInterpreterServer.java:744)\n\tat org.apache.zeppelin.scheduler.Job.run(Job.java:172)\n\tat org.apache.zeppelin.scheduler.AbstractScheduler.runJob(AbstractScheduler.java:132)\n\tat org.apache.zeppelin.scheduler.FIFOScheduler.lambda$runJobInScheduler$0(FIFOScheduler.java:42)\n\tat java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)\n\tat java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)\n\tat java.lang.Thread.run(Thread.java:748)\nCaused by: org.apache.zeppelin.interpreter.InterpreterException: Fail to open PythonInterpreter\n\tat org.apache.zeppelin.python.PythonInterpreter.open(PythonInterpreter.java:115)\n\tat org.apache.zeppelin.spark.PySparkInterpreter.open(PySparkInterpreter.java:94)\n\tat org.apache.zeppelin.interpreter.LazyOpenInterpreter.open(LazyOpenInterpreter.java:70)\n\t... 8 more\nCaused by: java.io.IOException: Fail to launch python process.\norg.apache.commons.exec.ExecuteException: Execution failed (Exit value: -559038737. Caused by java.io.IOException: Cannot run program \"<python_path>\" (in directory \".\"): error=2, No such file or directory)\n\tat org.apache.commons.exec.DefaultExecutor$1.run(DefaultExecutor.java:205)\n\tat java.lang.Thread.run(Thread.java:748)\nCaused by: java.io.IOException: Cannot run program \"<python_path>\" (in directory \".\"): error=2, No such file or directory\n\tat java.lang.ProcessBuilder.start(ProcessBuilder.java:1048)\n\tat java.lang.Runtime.exec(Runtime.java:621)\n\tat org.apache.commons.exec.launcher.Java13CommandLauncher.exec(Java13CommandLauncher.java:61)\n\tat org.apache.commons.exec.DefaultExecutor.launch(DefaultExecutor.java:279)\n\tat org.apache.commons.exec.DefaultExecutor.executeInternal(DefaultExecutor.java:336)\n\tat org.apache.commons.exec.DefaultExecutor.access$200(DefaultExecutor.java:48)\n\tat org.apache.commons.exec.DefaultExecutor$1.run(DefaultExecutor.java:200)\n\t... 1 more\nCaused by: java.io.IOException: error=2, No such file or directory\n\tat java.lang.UNIXProcess.forkAndExec(Native Method)\n\tat java.lang.UNIXProcess.<init>(UNIXProcess.java:247)\n\tat java.lang.ProcessImpl.start(ProcessImpl.java:134)\n\tat java.lang.ProcessBuilder.start(ProcessBuilder.java:1029)\n\t... 7 more\n\n\tat org.apache.zeppelin.python.PythonInterpreter.createGatewayServerAndStartScript(PythonInterpreter.java:160)\n\tat org.apache.zeppelin.python.PythonInterpreter.open(PythonInterpreter.java:112)\n\t... 10 more\n"
+          }
+        ]
+      },
+      "apps": [],
+      "runtimeInfos": {},
+      "progressUpdateIntervalMs": 500,
+      "jobName": "paragraph_1650636059371_1306910942",
+      "id": "paragraph_1650636059371_1306910942",
+      "dateCreated": "2022-04-22T14:00:59+0000",
+      "dateStarted": "2022-04-22T14:07:39+0000",
+      "dateFinished": "2022-04-22T14:07:44+0000",
+      "status": "ERROR",
+      "$$hashKey": "object:2425"
+    },
+    {
+      "text": "%pyspark\n#read files\n        try:\n              rdd_movies = read_file(input+'/csv/movies.csv')\n              rdd_ratings = read_file(input+'/csv/ratings.csv')\n       except Exception:\n              return 'Error while reading files'",
+      "user": "anonymous",
+      "dateUpdated": "2022-04-22T14:08:34+0000",
+      "progress": 0,
+      "config": {
+        "editorSetting": {
+          "language": "python",
+          "editOnDblClick": false,
+          "completionKey": "TAB",
+          "completionSupport": true
+        },
+        "colWidth": 12,
+        "editorMode": "ace/mode/python",
+        "fontSize": 9,
+        "results": {},
+        "enabled": true
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "results": {
+        "code": "SUCCESS",
+        "msg": []
+      },
+      "apps": [],
+      "runtimeInfos": {},
+      "progressUpdateIntervalMs": 500,
+      "jobName": "paragraph_1650634535292_657344319",
+      "id": "paragraph_1650634535292_657344319",
+      "dateCreated": "2022-04-22T13:35:35+0000",
+      "dateStarted": "2022-04-22T13:35:49+0000",
+      "dateFinished": "2022-04-22T13:35:49+0000",
+      "status": "FINISHED",
+      "$$hashKey": "object:2426"
+    },
+    {
+      "text": "%pyspark\n#get filtered movies dataset\n        rdd_movies_mapped_filtered = rdd_movies\\\n              .map(lambda line: get_movies_line_split(line)) \\\n              .filter(lambda line_split: is_correct(line_split,args)) ",
+      "user": "anonymous",
+      "dateUpdated": "2022-04-22T14:04:22+0000",
+      "progress": 0,
+      "config": {
+        "editorSetting": {
+          "language": "python",
+          "editOnDblClick": false,
+          "completionKey": "TAB",
+          "completionSupport": true
+        },
+        "colWidth": 12,
+        "editorMode": "ace/mode/python",
+        "fontSize": 9,
+        "results": {},
+        "enabled": true
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "results": {
+        "code": "SUCCESS",
+        "msg": []
+      },
+      "apps": [],
+      "runtimeInfos": {},
+      "progressUpdateIntervalMs": 500,
+      "jobName": "paragraph_1650634549444_306655577",
+      "id": "paragraph_1650634549444_306655577",
+      "dateCreated": "2022-04-22T13:35:49+0000",
+      "dateStarted": "2022-04-22T13:38:00+0000",
+      "dateFinished": "2022-04-22T13:39:02+0000",
+      "status": "ABORT",
+      "$$hashKey": "object:2427"
+    },
+    {
+      "text": "%pyspark\n#get rating dataset grouped by movie_id\nrdd_ratings_mapped = rdd_ratings\\\n              .map (lambda line: get_ratings_line_split(line)) \\\n              .groupByKey().mapValues(list) ",
+      "user": "anonymous",
+      "dateUpdated": "2022-04-22T14:04:42+0000",
+      "progress": 0,
+      "config": {
+        "editorSetting": {
+          "language": "python",
+          "editOnDblClick": false,
+          "completionKey": "TAB",
+          "completionSupport": true
+        },
+        "colWidth": 12,
+        "editorMode": "ace/mode/python",
+        "fontSize": 9,
+        "results": {},
+        "enabled": true
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "runtimeInfos": {},
+      "progressUpdateIntervalMs": 500,
+      "jobName": "paragraph_1650634679992_2074916635",
+      "id": "paragraph_1650634679992_2074916635",
+      "dateCreated": "2022-04-22T13:37:59+0000",
+      "status": "READY",
+      "$$hashKey": "object:2428"
+    },
+    {
+      "text": "%pyspark\n#join movie and rating datasets and get average rating\nrdd_movies_ratings = rdd_movies_mapped_filtered\\\n              .join(rdd_ratings_mapped) \\\n              .flatMap(lambda res_tuple: get_avg_rating(res_tuple)) ",
+      "user": "anonymous",
+      "dateUpdated": "2022-04-22T14:06:50+0000",
+      "progress": 0,
+      "config": {
+        "editorSetting": {
+          "language": "python",
+          "editOnDblClick": false,
+          "completionKey": "TAB",
+          "completionSupport": true
+        },
+        "colWidth": 12,
+        "editorMode": "ace/mode/python",
+        "fontSize": 9,
+        "editorHide": false,
+        "results": {},
+        "enabled": true
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "runtimeInfos": {},
+      "progressUpdateIntervalMs": 500,
+      "jobName": "paragraph_1650636172166_287281052",
+      "id": "paragraph_1650636172166_287281052",
+      "dateCreated": "2022-04-22T14:02:52+0000",
+      "status": "READY",
+      "$$hashKey": "object:2429"
+    },
+    {
+      "text": "%pyspark\n#sort by genre and get first n values by rating\nrdd_movies_ratings_reduced = rdd_movies_ratings\\\n              .sortBy(lambda tuple:get_item(tuple)) \\\n              .groupBy(lambda tuple:get_group_key(tuple)) \\\n              .flatMap(lambda tuple: get_first_n(tuple,args)) ",
+      "user": "anonymous",
+      "dateUpdated": "2022-04-22T14:05:44+0000",
+      "progress": 0,
+      "config": {
+        "editorSetting": {
+          "language": "python",
+          "editOnDblClick": false,
+          "completionKey": "TAB",
+          "completionSupport": true
+        },
+        "colWidth": 12,
+        "editorMode": "ace/mode/python",
+        "fontSize": 9,
+        "editorHide": false,
+        "results": {},
+        "enabled": true
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "runtimeInfos": {},
+      "progressUpdateIntervalMs": 500,
+      "jobName": "paragraph_1650636170262_415421961",
+      "id": "paragraph_1650636170262_415421961",
+      "dateCreated": "2022-04-22T14:02:50+0000",
+      "status": "READY",
+      "$$hashKey": "object:2430"
+    },
+    {
+      "text": "%pyspark\n#get rdd in required format\nrdd_movies_ratings_result = rdd_movies_ratings_reduced\\\n              .map(lambda tuple: get_format(tuple)) ",
+      "user": "anonymous",
+      "dateUpdated": "2022-04-22T14:07:02+0000",
+      "progress": 0,
+      "config": {
+        "editorSetting": {
+          "language": "python",
+          "editOnDblClick": false,
+          "completionKey": "TAB",
+          "completionSupport": true
+        },
+        "colWidth": 12,
+        "editorMode": "ace/mode/python",
+        "fontSize": 9,
+        "editorHide": false,
+        "results": {},
+        "enabled": true
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "runtimeInfos": {},
+      "progressUpdateIntervalMs": 500,
+      "jobName": "paragraph_1650636163589_475597480",
+      "id": "paragraph_1650636163589_475597480",
+      "dateCreated": "2022-04-22T14:02:43+0000",
+      "status": "READY",
+      "$$hashKey": "object:2431"
+    },
+    {
+      "text": "%pyspark\n#save a result to files\nrdd_movies_ratings_result.saveAsTextFile(output) ",
+      "user": "anonymous",
+      "dateUpdated": "2022-04-22T14:07:35+0000",
+      "progress": 0,
+      "config": {
+        "editorSetting": {
+          "language": "python",
+          "editOnDblClick": false,
+          "completionKey": "TAB",
+          "completionSupport": true
+        },
+        "colWidth": 12,
+        "editorMode": "ace/mode/python",
+        "fontSize": 9,
+        "editorHide": false,
+        "results": {},
+        "enabled": true
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "runtimeInfos": {},
+      "progressUpdateIntervalMs": 500,
+      "jobName": "paragraph_1650636167446_285873384",
+      "id": "paragraph_1650636167446_285873384",
+      "dateCreated": "2022-04-22T14:02:47+0000",
+      "status": "READY",
+      "$$hashKey": "object:2432"
+    },
+    {
+      "text": "%sh\n#see the result\nhdfs dfs -cat output/* ",
+      "user": "anonymous",
+      "dateUpdated": "2022-04-22T14:09:44+0000",
+      "progress": 0,
+      "config": {
+        "editorSetting": {
+          "language": "sh",
+          "editOnDblClick": false,
+          "completionKey": "TAB",
+          "completionSupport": false
+        },
+        "colWidth": 12,
+        "editorMode": "ace/mode/sh",
+        "fontSize": 9,
+        "editorHide": false,
+        "results": {},
+        "enabled": true
+      },
+      "settings": {
+        "params": {},
+        "forms": {}
+      },
+      "apps": [],
+      "runtimeInfos": {},
+      "progressUpdateIntervalMs": 500,
+      "jobName": "paragraph_1650636518792_1265333937",
+      "id": "paragraph_1650636518792_1265333937",
+      "dateCreated": "2022-04-22T14:08:38+0000",
+      "status": "READY",
+      "$$hashKey": "object:2433"
+    }
+  ],
+  "name": "get_movies-zeppelin",
+  "id": "2H3W7VGA6",
+  "defaultInterpreterGroup": "spark",
+  "version": "0.9.0",
+  "noteParams": {},
+  "noteForms": {},
+  "angularObjects": {},
+  "config": {
+    "isZeppelinNotebookCronEnable": false,
+    "looknfeel": "default",
+    "personalizedMode": "false"
+  },
+  "info": {},
+  "path": "/get_movies-zeppelin"
+}
